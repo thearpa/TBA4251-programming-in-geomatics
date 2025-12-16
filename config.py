@@ -6,9 +6,7 @@ import numpy as np
 
 LAZ_DIR = "sample_roofdata_50"
 
-import os
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 FOOTPRINT_PATH =  "footprints_25832.gpkg"
 FOOTPRINT_LAYER = "buildings"   # eller None
@@ -45,7 +43,7 @@ RIDGE_ANG_THR = 10.0                 # vinkelgrense for "ridge-lignende" (deg)
 # Plot / IO
 MAX_POINTS_PLOT = 40_000
 WALL_HEIGHT = 8.0
-OUT_DIR = "output/output_roof_recon"
+OUT_DIR = "output1"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # RNG til sampling i plott

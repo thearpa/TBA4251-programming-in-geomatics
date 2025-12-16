@@ -4,46 +4,10 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon as MplPolygon
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from shapely.geometry import Polygon
+from shapely.ops import triangulate
+
 
 from config import WALL_HEIGHT, MAX_POINTS_PLOT, OUT_DIR, rng
-
-
-def plot_building_debug(points: np.ndarray,
-                        footprint_polygon: Polygon,
-                        faces_3d: list,
-                        title: str = "Building Debug View"):
-    fig = plt.figure(figsize=(12, 9), dpi=120)
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title(title)
-
-    if points is not None and len(points) > 0:
-        ax.scatter(points[:, 0], points[:, 1], points[:, 2],
-                   s=1, c='gray', alpha=0.4, label="Point cloud")
-
-    if footprint_polygon is not None and not footprint_polygon.is_empty:
-        xs, ys = footprint_polygon.exterior.xy
-        z_min = np.min(points[:, 2]) if len(points) > 0 else 0.0
-        ax.plot(xs, ys, zs=z_min, color='black', linewidth=2, label="Footprint")
-
-    colors = ['red', 'green', 'blue', 'orange', 'purple', 'cyan',
-              'yellow', 'magenta', 'lime', 'pink']
-
-    for i, face in enumerate(faces_3d):
-        if len(face) < 3:
-            continue
-        color = colors[i % len(colors)]
-        poly = Poly3DCollection([face], alpha=0.65, facecolor=color)
-        poly.set_edgecolor('k')
-        ax.add_collection3d(poly)
-
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.set_zlabel("Z")
-    ax.view_init(elev=70, azim=-120)
-    ax.legend(loc='upper right')
-
-    plt.tight_layout()
-    plt.show()
 
 
 def plot_building_2d(idx, tag, poly, x_pts, y_pts, faces, pts_in, path_out):
@@ -101,17 +65,42 @@ def plot_building_3d(idx, tag, poly, x_pts, y_pts, z_pts, faces_rings3d, zmin, p
         outer = [(x, y, (z - zmin) * VE + zmin) for (x, y, z) in rings[0]]
         if len(outer) < 3:
             continue
+
+        # 2D-polygon av ringen (uten z)
+        poly2d = Polygon([(x, y) for (x, y, _) in outer])
+        if poly2d.is_empty or not poly2d.is_valid:
+            continue
+
+        # map (x,y) -> z for å løfte trianglene tilbake til 3D
+        # (runding for å unngå float-mismatch)
+        zmap = {(round(x, 6), round(y, 6)): z for (x, y, z) in outer}
+
         tris = []
-        b0 = outer[0]
-        for j in range(1, len(outer) - 1):
-            tris.append([b0, outer[j], outer[j + 1]])
+        for t in triangulate(poly2d):
+            # t er en Triangle Polygon i 2D
+            coords = list(t.exterior.coords)[:-1]  # 3 punkter
+            tri3 = []
+            ok = True
+            for (x, y) in coords:
+                key = (round(x, 6), round(y, 6))
+                if key not in zmap:
+                    ok = False
+                    break
+                tri3.append((x, y, zmap[key]))
+            if ok and len(tri3) == 3:
+                tris.append(tri3)
+
+        if not tris:
+            continue
+
         pcoll = Poly3DCollection(
             tris,
             facecolors=[base_cols[i_f % 4]],
-            edgecolors='none',
+            edgecolors="none",
             linewidths=0.0
         )
         ax3.add_collection3d(pcoll)
+
 
     mins = np.array([x_pts.min(), y_pts.min(), z_pts.min()])
     maxs = np.array([x_pts.max(), y_pts.max(), z_pts.max()])

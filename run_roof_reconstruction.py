@@ -16,8 +16,7 @@ gpd.options.io_engine = "fiona"
 
 from config import (
     LAZ_DIR, FOOTPRINT_PATH, FOOTPRINT_LAYER, CRS_EPSG,
-    MAX_JOIN_DIST, TOP_K, OUT_DIR,
-    ENABLE_DEBUG, DEBUG_BUILDING_INDEX, WALL_HEIGHT
+    MAX_JOIN_DIST, TOP_K, OUT_DIR, WALL_HEIGHT
 )
 from geometry_utils import to2d, largest_part
 from roof_model import extract_roof_planes, classify_roof_type
@@ -137,20 +136,6 @@ def main():
             f"cov={cov_area:.2f}"
         )
 
-        if ENABLE_DEBUG and idx == DEBUG_BUILDING_INDEX:
-            allP = np.column_stack([x_pts, y_pts, z_pts])
-            pts2d_local = shapely.points(allP[:, :2])
-            mask_local = shapely.contains(poly, pts2d_local)
-            points_local = allP[mask_local]
-
-            faces_3d = []
-            for rings in faces_rings3d:
-                if not rings:
-                    continue
-                outer = np.array(rings[0])
-                faces_3d.append(outer)
-
-            
 
         if faces_rings3d:
             bid = f"b_{idx:03d}"

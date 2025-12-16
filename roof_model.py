@@ -86,6 +86,74 @@ def polygon_to_rings3d(poly: Polygon, n, d):
     return [ext] + holes
 
 
+# --- Eaves / footprint-kant regel ---
+EAVE_SNAP_TOL = 0.20   # meter: hvor nær footprint.exterior en tak-kant må være
+EAVE_MAX_DZ   = 0.20   # meter: hvis høydeforskjell langs kanten > dette -> korriger
+EAVE_MIN_LEN  = 0.80   # meter: ignorer mikrokant
+
+def _ring_segments(coords_xy):
+    """coords_xy: list of (x,y) uten siste= første"""
+    segs = []
+    n = len(coords_xy)
+    for i in range(n):
+        a = coords_xy[i]
+        b = coords_xy[(i + 1) % n]
+        segs.append(LineString([a, b]))
+    return segs
+
+def enforce_horizontal_eaves(faces: List[FaceRec], footprint: Polygon) -> None:
+    """
+    Finn tak-kanter som følger footprint-kanten (gesims/eaves),
+    og juster planet (d) slik at kanten blir horisontal (samme Z).
+    Endrer kun d (altså kun Z), ikke XY.
+    """
+    if not faces or not isinstance(footprint, Polygon):
+        return
+
+    fp_line = footprint.exterior
+
+    for f in faces:
+        ring = list(f.poly2d.exterior.coords)[:-1]
+        if len(ring) < 3:
+            continue
+
+        # samle forslag til nye d for denne flaten (kan ha flere eave-segmenter)
+        d_suggest = []
+
+        for seg in _ring_segments(ring):
+            if seg.length < EAVE_MIN_LEN:
+                continue
+
+            # Sjekk at segmentet ligger nær footprint boundary
+            # (bruk midtpunkt for robusthet + distance på hele seg)
+            mid = seg.interpolate(0.5, normalized=True)
+            if (mid.distance(fp_line) > EAVE_SNAP_TOL) and (seg.distance(fp_line) > EAVE_SNAP_TOL):
+                continue
+
+            (x1, y1) = seg.coords[0]
+            (x2, y2) = seg.coords[-1]
+
+            z1 = z_on_plane(f.n, f.d, x1, y1)
+            z2 = z_on_plane(f.n, f.d, x2, y2)
+            if not (np.isfinite(z1) and np.isfinite(z2)):
+                continue
+
+            dz = abs(z2 - z1)
+            if dz <= EAVE_MAX_DZ:
+                continue  # allerede horisontal nok
+
+            z_target = 0.5 * (z1 + z2)
+
+            # Sett d slik at planet går gjennom (x_mid, y_mid, z_target)
+            xm, ym = mid.x, mid.y
+            d_new = -(f.n[0]*xm + f.n[1]*ym + f.n[2]*z_target)
+            d_suggest.append(d_new)
+
+        if d_suggest:
+            f.d = float(np.mean(d_suggest))
+            f.rings3d = polygon_to_rings3d(f.poly2d, f.n, f.d)
+
+
 # ===== Taktype / modellregler =====
 
 def classify_roof_type(faces: List[FaceRec]) -> Dict[str, Any]:
@@ -619,7 +687,7 @@ def resolve_overlaps_by_rms(
                     continue
 
                 # Punkter i overlapps-området
-                mask = shapely.contains(inter_poly, pts2d)
+                mask = shapely.covers(inter_poly, pts2d)
                 P_reg = P_xyz[mask]
            
                 # Hvis for få punkt -> fall tilbake til areal-basert prioritering
@@ -674,7 +742,7 @@ def extract_roof_planes(
     allP = np.c_[x, y, z]
 
     pts2d = shapely.points(allP[:, :2])
-    mask_fp = shapely.contains(footprint, pts2d)
+    mask_fp = shapely.covers(footprint, pts2d)
     P = allP[mask_fp]
     if len(P) < MIN_INLIERS:
         return []
@@ -783,6 +851,7 @@ def extract_roof_planes(
     # 6) model-driven ridge-regel
     edges = classify_edges(faces)
     apply_roof_rules(faces, edges)
+    enforce_horizontal_eaves(faces, footprint)
 
     # 7) nested + små/slanke flater
     faces = drop_nested_faces(faces)
@@ -814,6 +883,7 @@ def extract_roof_planes(
         )
 
     faces = snapped_faces
+    enforce_horizontal_eaves(faces, footprint)
 
     # 8b) FJERN OVERLAPP ETTER SNAPPING
     #    – nå jobber vi på de endelige konturene
