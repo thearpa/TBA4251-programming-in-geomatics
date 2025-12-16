@@ -6,7 +6,7 @@ fgdb = "Trondheim_fkb_bygning.gdb"
 print(fiona.listlayers(fgdb))
 # ['fkb_bygning_omrade', 'fkb_bygning_grense', 'fkb_bygning_posisjon', 'fkb_bygning_senterlinje']
 
-# 2) Les inn footprint-laget (polygoner)
+# 2) Les inn footprint-laget (polygoner
 gdf = gpd.read_file(fgdb, layer="fkb_bygning_omrade")
 
 # 3) Undersøk dataene
