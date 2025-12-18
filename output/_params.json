@@ -1,0 +1,8 @@
+{
+  "LAZ_DIR": "sample_roofdata_50",
+  "FOOTPRINT_PATH": "footprints_25832.gpkg",
+  "FOOTPRINT_LAYER": "buildings",
+  "CRS_EPSG": 25832,
+  "MAX_JOIN_DIST": 6.0,
+  "TOP_K": 20
+}
