@@ -79,7 +79,7 @@ def main():
     if len(combined) == 0:
         raise SystemExit("Ingen matches - sjekk CRS/MAX_JOIN_DIST.")
 
-    # ranger etter antall takpunkt inne i footprint
+    # Rank by number of roof points inside the footprint
     def count_pts_in_poly(row):
         poly = largest_part(row["geometry"])
         pts = shapely.points(np.column_stack([row["x"], row["y"]]))
@@ -136,17 +136,19 @@ def main():
             f"cov={cov_area:.2f}"
         )
 
+   
+            
 
         if faces_rings3d:
             bid = f"b_{idx:03d}"
            
-            # -------- CityGML (roofs + walls) --------
+            #  CityGML (roofs + walls) 
             citygml_all.add_building(
                 bid,
                 faces_rings3d=faces_rings3d,
                 footprint=poly,      # 2D footprint polygon
                 ground_z=zmin,       # min_z for this building
-                default_wall_height=WALL_HEIGHT  # or e.g. 3.0
+                default_wall_height=WALL_HEIGHT  
             )
 
         plot_building_2d(

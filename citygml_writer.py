@@ -16,7 +16,7 @@ class CityGMLWriter:
         self.buildings: Dict[str, Dict[str, List[FaceGeom]]] = {}
         self._poly_counter = 0
 
-    # ---------- small helpers ----------
+    # small helpers
 
     @staticmethod
     def _ring_area2_xy(ring: List[Tuple[float, float, float]]) -> float:
@@ -56,7 +56,7 @@ class CityGMLWriter:
             coords.append(f"{x:.3f} {y:.3f} {z:.3f}")
         return " ".join(coords)
 
-    # ---------- roof handling ----------
+    # roof handling 
 
     def _make_roof_geoms(
         self,
@@ -85,7 +85,7 @@ class CityGMLWriter:
             geoms.append(FaceGeom(rings3d=normalized))
         return geoms
 
-    # ---------- wall generation from footprint + roofs ----------
+    # wall generation from footprint + roofs 
 
     @staticmethod
     def _collect_roof_vertices(
@@ -156,7 +156,7 @@ class CityGMLWriter:
         return geoms
 
 
-    # ---------- public API ----------
+    #  public API 
 
     def add_building(
         self,
@@ -186,7 +186,7 @@ class CityGMLWriter:
             "walls": walls
         }
 
-    # ---------- XML generation ----------
+    #  XML generation 
 
     def _build_polygon_xml(
         self, poly_id: str, geom: FaceGeom
@@ -219,7 +219,7 @@ class CityGMLWriter:
         self, bid: str, geoms: List[FaceGeom], surf_kind: str
     ) -> str:
         """
-        surf_kind: 'RoofSurface' eller 'WallSurface'
+        surf_kind: 'RoofSurface' or 'WallSurface'
         """
         if not geoms:
             return ""

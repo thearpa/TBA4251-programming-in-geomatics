@@ -1,13 +1,12 @@
 import xml.etree.ElementTree as ET
 import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
 
 def preview_citygml_3d(gml_path: str):
-    import xml.etree.ElementTree as ET
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+   
 
     ns = {
         "gml": "http://www.opengis.net/gml",
@@ -34,7 +33,7 @@ def preview_citygml_3d(gml_path: str):
 
     pts = np.vstack(rings)
 
-    # 🔥 lokal referanse
+    #  lokal referanse
     x0, y0, z0 = pts[:,0].mean(), pts[:,1].mean(), pts[:,2].min()
     pts_local = pts - np.array([x0, y0, z0])
 
@@ -51,7 +50,6 @@ def preview_citygml_3d(gml_path: str):
         )
         ax.add_collection3d(poly)
 
-    # ✅ Zoom automatisk rundt geometrien
     margin = 10
     ax.set_xlim(np.min(pts_local[:,0]) - margin, np.max(pts_local[:,0]) + margin)
     ax.set_ylim(np.min(pts_local[:,1]) - margin, np.max(pts_local[:,1]) + margin)

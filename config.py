@@ -1,50 +1,47 @@
-# config.py
 import os
 import numpy as np
 
-# ================== INPUT / PARAMS ==================
 
-LAZ_DIR = "sample_roofdata_50"
+LAZ_DIR = "sample_roofdata_50"          # Directory with LiDAR point clouds
+FOOTPRINT_PATH = "footprints_25832.gpkg" # Building footprint dataset
+FOOTPRINT_LAYER = "buildings"            # Footprint layer name
+CRS_EPSG = 25832                         # Coordinate reference system
 
+# MATCHING 
 
+MAX_JOIN_DIST = 6.0                      # Max distance for footprint–point cloud matching
+TOP_K = 50                               # Number of buildings to process
 
-FOOTPRINT_PATH =  "footprints_25832.gpkg"
-FOOTPRINT_LAYER = "buildings"   # eller None
- # None hvis SHP
+# PLANE EXTRACTION 
 
-CRS_EPSG = 25832
+VOXEL_SIZE = 0.08                        # Voxel size for downsampling (m)
+MAX_PLANES = 10                          # Max number of roof planes
+RANSAC_DIST = 0.08                       # Initial RANSAC distance threshold (m)
+RANSAC_N = 3                             # RANSAC sample size
+RANSAC_ITERS = 5000                      # RANSAC iterations
+MIN_INLIERS = 80                         # Minimum inlier points
+MIN_INLIERS_REL = 0.01                   # Minimum inlier ratio
 
-# Matching / utvalg
-MAX_JOIN_DIST = 6.0
-TOP_K = 20                           # None = alle
+# ROOF POST-PROCESSING 
 
-# Open3D planes
-VOXEL_SIZE = 0.12                    # nedprøving (m)
-MAX_PLANES = 10
-RANSAC_DIST = 0.12                   # min-gulv – økes adaptivt
-RANSAC_N = 3
-RANSAC_ITERS = 5000
-MIN_INLIERS = 150                    # min absolutte inliers
-MIN_INLIERS_REL = 0.01            # 0.5% av downsampled
+CONCAVE_RATIO = 0.25                     # Concave hull tightness
+ALPHA_Q = 2.2                            # Alpha-shape parameter
+INNER_CLIP = 0.05                        # Inward polygon buffer (m)
+MIN_FACE_AREA = 0.8                      # Minimum roof face area (m²)
+MAX_SLOPE_DEG = 60.0                     # Maximum roof slope (degrees)
+MERGE_ANG_DEG = 5.0                      # Coplanar merge angle threshold
+MERGE_DZ = 0.1                           # Coplanar height difference (m)
 
-# Post-prosess flater
-CONCAVE_RATIO = 0.25                 # 0..1 (lavere => strammere)
-ALPHA_Q = 2.2                        # alpha-shape terskel fallback
-INNER_CLIP = 0.05                    # liten innbuffer
-MIN_FACE_AREA = 0.8                  # m² – dropp små flater
-MAX_SLOPE_DEG = 60.0                 # maks tak-skråning (vegger ~90°)
-MERGE_ANG_DEG = 5.0                  # koplanar-merge vinkel
-MERGE_DZ = 0.1                      # koplanar-merge høydeforskjell
+#  RIDGE MODEL 
 
-# Kant / ridge model
-EDGE_MIN_LEN = 0.6                   # min delt kantlengde (m)
-RIDGE_ANG_THR = 10.0                 # vinkelgrense for "ridge-lignende" (deg)
+EDGE_MIN_LEN = 0.6                       # Minimum edge length (m)
+RIDGE_ANG_THR = 10.0                     # Ridge angle threshold (degrees)
 
-# Plot / IO
-MAX_POINTS_PLOT = 40_000
-WALL_HEIGHT = 8.0
-OUT_DIR = "output1"
+#  OUTPUT 
+
+MAX_POINTS_PLOT = 40_000                 # Max points shown in plots
+WALL_HEIGHT = 8.0                        # Default wall height (m)
+OUT_DIR = "output8"                      # Output directory
 os.makedirs(OUT_DIR, exist_ok=True)
 
-# RNG til sampling i plott
-rng = np.random.default_rng(0)
+rng = np.random.default_rng(0)           # Random generator for plotting

@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
 """
-zoom_building.py
-----------------
 Standalone script to load a CityGML file and visualise buildings properly zoomed
 and centred in a local coordinate system.
 
@@ -16,14 +13,13 @@ Usage:
     python zoom_building.py path/to/file.gml
 
 Optional:
-    python zoom_building.py path/to/file.gml --building b_000
+    python zoom_building.py output1/_all_roofs.gml --building b_000
 """
 
 import xml.etree.ElementTree as ET
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-import sys
 import argparse
 
 NS = {

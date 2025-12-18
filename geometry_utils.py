@@ -1,12 +1,10 @@
-# geometry_utils.py
-import math
 from typing import List, Tuple
 
 import numpy as np
 import shapely
 from shapely.geometry import (
     Point, Polygon, MultiPolygon, MultiPoint,
-    LineString, MultiLineString
+   
 )
 from shapely.ops import unary_union, triangulate, polygonize_full
 from shapely.validation import make_valid
@@ -105,7 +103,6 @@ def compute_coverage(faces_polys, footprint_poly) -> float:
         return 0.0
 
 
-# ===== Plan-lokalt hull =====
 
 def _plane_basis_from_normal(n: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     n = np.asarray(n, float)

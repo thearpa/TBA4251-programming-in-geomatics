@@ -1,4 +1,3 @@
-# plots.py
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon as MplPolygon
@@ -66,19 +65,17 @@ def plot_building_3d(idx, tag, poly, x_pts, y_pts, z_pts, faces_rings3d, zmin, p
         if len(outer) < 3:
             continue
 
-        # 2D-polygon av ringen (uten z)
+        # 2D-polygon 
         poly2d = Polygon([(x, y) for (x, y, _) in outer])
         if poly2d.is_empty or not poly2d.is_valid:
             continue
 
-        # map (x,y) -> z for å løfte trianglene tilbake til 3D
-        # (runding for å unngå float-mismatch)
+    
         zmap = {(round(x, 6), round(y, 6)): z for (x, y, z) in outer}
 
         tris = []
         for t in triangulate(poly2d):
-            # t er en Triangle Polygon i 2D
-            coords = list(t.exterior.coords)[:-1]  # 3 punkter
+            coords = list(t.exterior.coords)[:-1]  # 3 points
             tri3 = []
             ok = True
             for (x, y) in coords:
@@ -109,35 +106,9 @@ def plot_building_3d(idx, tag, poly, x_pts, y_pts, z_pts, faces_rings3d, zmin, p
     ax3.set_xlabel("Easting (m)")
     ax3.set_ylabel("Northing (m)")
     ax3.set_zlabel("Z (m)")
-    ax3.set_title(f"{idx:02d} – {tag} (LoD2-ish roof)")
+    ax3.set_title(f"{idx:02d} – {tag} (LoD2 roof)")
     plt.tight_layout()
     plt.savefig(path_out, dpi=300)
     plt.close(fig3)
-
-
-def plot_histograms(reports):
-    import os
-    rms_vals = [r["rms_mean"] for r in reports if r["rms_mean"] is not None]
-    cov_vals = [r["coverage"] for r in reports if r["coverage"] is not None]
-
-    if rms_vals:
-        fig_rms, ax_rms = plt.subplots()
-        ax_rms.hist(rms_vals, bins=20)
-        ax_rms.set_xlabel("RMS (m)")
-        ax_rms.set_ylabel("Antall bygg")
-        ax_rms.set_title("Fordeling av tak-RMS")
-        plt.tight_layout()
-        plt.savefig(os.path.join(OUT_DIR, "_rms_hist.png"), dpi=200)
-        plt.close(fig_rms)
-
-    if cov_vals:
-        fig_cov, ax_cov = plt.subplots()
-        ax_cov.hist(cov_vals, bins=20)
-        ax_cov.set_xlabel("Coverage (takflateunion / footprint)")
-        ax_cov.set_ylabel("Antall bygg")
-        ax_cov.set_title("Fordeling av coverage")
-        plt.tight_layout()
-        plt.savefig(os.path.join(OUT_DIR, "_coverage_hist.png"), dpi=200)
-        plt.close(fig_cov)
 
 

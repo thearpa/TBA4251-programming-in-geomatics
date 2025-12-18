@@ -29,8 +29,7 @@ class FaceRec:
     rings3d: List[List[tuple]]  # [outer, hole1, ...]
 
 
-# ===== Planefit / grunnleggende =====
-
+#  Planefit 
 def fit_plane_ls_irls(Pxyz: np.ndarray, iters: int = 3):
     X = np.c_[Pxyz[:, 0], Pxyz[:, 1], np.ones(len(Pxyz))]
     z = Pxyz[:, 2]
@@ -86,13 +85,13 @@ def polygon_to_rings3d(poly: Polygon, n, d):
     return [ext] + holes
 
 
-# --- Eaves / footprint-kant regel ---
-EAVE_SNAP_TOL = 0.20   # meter: hvor nær footprint.exterior en tak-kant må være
-EAVE_MAX_DZ   = 0.20   # meter: hvis høydeforskjell langs kanten > dette -> korriger
-EAVE_MIN_LEN  = 0.80   # meter: ignorer mikrokant
+EAVE_SNAP_TOL = 0.20   # Eave–footprint proximity threshold (m)
+EAVE_MAX_DZ   = 0.20   # Eave height tolerance (m)
+EAVE_MIN_LEN  = 0.80   # Minimum eave length (m)
+
 
 def _ring_segments(coords_xy):
-    """coords_xy: list of (x,y) uten siste= første"""
+    """coords_xy: list of (x,y) """
     segs = []
     n = len(coords_xy)
     for i in range(n):
@@ -103,9 +102,11 @@ def _ring_segments(coords_xy):
 
 def enforce_horizontal_eaves(faces: List[FaceRec], footprint: Polygon) -> None:
     """
-    Finn tak-kanter som følger footprint-kanten (gesims/eaves),
-    og juster planet (d) slik at kanten blir horisontal (samme Z).
-    Endrer kun d (altså kun Z), ikke XY.
+    Identify roof edges that follow the building footprint boundary (eaves),
+    and adjust the plane offset (d) so that the edge becomes horizontal
+    (constant Z). Only the plane offset (d) is modified; the XY geometry
+    remains unchanged.
+
     """
     if not faces or not isinstance(footprint, Polygon):
         return
@@ -117,15 +118,13 @@ def enforce_horizontal_eaves(faces: List[FaceRec], footprint: Polygon) -> None:
         if len(ring) < 3:
             continue
 
-        # samle forslag til nye d for denne flaten (kan ha flere eave-segmenter)
+       
         d_suggest = []
 
         for seg in _ring_segments(ring):
             if seg.length < EAVE_MIN_LEN:
                 continue
 
-            # Sjekk at segmentet ligger nær footprint boundary
-            # (bruk midtpunkt for robusthet + distance på hele seg)
             mid = seg.interpolate(0.5, normalized=True)
             if (mid.distance(fp_line) > EAVE_SNAP_TOL) and (seg.distance(fp_line) > EAVE_SNAP_TOL):
                 continue
@@ -140,11 +139,10 @@ def enforce_horizontal_eaves(faces: List[FaceRec], footprint: Polygon) -> None:
 
             dz = abs(z2 - z1)
             if dz <= EAVE_MAX_DZ:
-                continue  # allerede horisontal nok
+                continue  
 
             z_target = 0.5 * (z1 + z2)
 
-            # Sett d slik at planet går gjennom (x_mid, y_mid, z_target)
             xm, ym = mid.x, mid.y
             d_new = -(f.n[0]*xm + f.n[1]*ym + f.n[2]*z_target)
             d_suggest.append(d_new)
@@ -154,7 +152,7 @@ def enforce_horizontal_eaves(faces: List[FaceRec], footprint: Polygon) -> None:
             f.rings3d = polygon_to_rings3d(f.poly2d, f.n, f.d)
 
 
-# ===== Taktype / modellregler =====
+# Roof type
 
 def classify_roof_type(faces: List[FaceRec]) -> Dict[str, Any]:
     if not faces:
@@ -618,8 +616,8 @@ def drop_nested_faces(faces: List[FaceRec], area_ratio: float = 0.9) -> List[Fac
 
 def _rms_on_points(face: FaceRec, P: np.ndarray) -> float:
     """
-    RMS mellom plane (face.n, face.d) og punkter P (N x 3).
-    Brukes bare lokalt i overlapps-regioner.
+    RMS error between the plane (face.n, face.d) and point set P (N × 3).
+    Used only locally within overlapping regions.
     """
     if len(P) == 0:
         return float("inf")
@@ -636,13 +634,14 @@ def resolve_overlaps_by_rms(
     min_pts_region: int = 30
 ) -> List[FaceRec]:
     """
-    Fjerner overlapp mellom takflater:
-      - Finn overlapps-polygon mellom to flater
-      - Bruk punkter i overlapps-området til å beregne RMS for hver flate
-      - Flaten med dårligst RMS taper overlappet (klippes med difference)
-      - Hvis diff gir flere polygoner -> lag flere faces av samme plan
+    Removes overlap between roof faces:
+    - Compute the overlapping polygon between two faces
+    - Use points within the overlap region to compute RMS error for each face
+    - The face with higher RMS loses the overlap (clipped using difference)
+    - If the difference produces multiple polygons, create multiple faces
+        using the same plane parameters
 
-    P_xyz: alle punkter (x,y,z) inne i footprinten for dette bygget.
+    P_xyz contains all (x, y, z) points inside the building footprint.
     """
     if len(faces) < 2 or len(P_xyz) == 0:
         return faces
@@ -656,7 +655,6 @@ def resolve_overlaps_by_rms(
         if nF < 2:
             break
 
-        # Vi må kunne bygge lista på nytt når vi splitter / fjerner
         for i in range(nF):
             fi = faces[i]
             for j in range(i + 1, nF):
@@ -666,7 +664,7 @@ def resolve_overlaps_by_rms(
                 if inter.is_empty:
                     continue
 
-                # Håndter Polygon / MultiPolygon / GeometryCollection
+                # Polygon / MultiPolygon / GeometryCollection
                 if isinstance(inter, Polygon):
                     inter_polys = [inter]
                 else:
@@ -680,17 +678,14 @@ def resolve_overlaps_by_rms(
                 if not inter_polys:
                     continue
 
-                # Bruk største overlapps-polygon som representant
                 inter_poly = max(inter_polys, key=lambda g: g.area)
 
                 if inter_poly.area < min_overlap_area:
                     continue
 
-                # Punkter i overlapps-området
                 mask = shapely.covers(inter_poly, pts2d)
                 P_reg = P_xyz[mask]
            
-                # Hvis for få punkt -> fall tilbake til areal-basert prioritering
                 if len(P_reg) < min_pts_region:
                     keep_i = fi.poly2d.area >= fj.poly2d.area
                 else:
@@ -705,7 +700,6 @@ def resolve_overlaps_by_rms(
                 new_faces: List[FaceRec] = []
 
                 if diff.is_empty:
-                    # taperen forsvinner helt
                     pass
                 else:
                     if isinstance(diff, Polygon):
@@ -722,19 +716,18 @@ def resolve_overlaps_by_rms(
                             FaceRec(poly2d=poly, n=loser.n, d=loser.d, rings3d=rings3d)
                         )
 
-                # Bygg ny faces-liste: vi fjerner taperen og legger inn evt. nye biter
                 faces = [f for k, f in enumerate(faces) if k != loser_idx]
                 faces.extend(new_faces)
 
                 changed = True
-                break  # restart pga endret liste
+                break  
             if changed:
                 break
 
     return faces
 
 
-# ===== Hoved-funksjon: plane-first + model-driven =====
+# plane-first + model-driven 
 
 def extract_roof_planes(
     x: np.ndarray, y: np.ndarray, z: np.ndarray, footprint: Polygon,
@@ -841,27 +834,27 @@ def extract_roof_planes(
         if not faces:
             return []
 
-    # 5) koplanar-merge
+    # 5) colanar-merge
     faces = merge_coplanar_faces(faces, ang_thr=MERGE_ANG_DEG, d_thr=MERGE_DZ)
 
-    # 5b) enkel saltak-spesialregel
+    # 5b) simple gable
     faces = refine_simple_gable(faces, footprint)
     force_simple_gable_ridge_height(faces, footprint)
 
-    # 6) model-driven ridge-regel
+    # 6) model-driven ridge-rool
     edges = classify_edges(faces)
     apply_roof_rules(faces, edges)
     enforce_horizontal_eaves(faces, footprint)
 
-    # 7) nested + små/slanke flater
+    # 7) nested + small planes
     faces = drop_nested_faces(faces)
     faces = drop_small_or_slim_faces(faces)
 
-    # 7b) fjern overlappende takflater basert på RMS i overlapps-soner
+    # 7b) remove overlaps
     faces = resolve_overlaps_by_rms(faces, P)
 
  
-    # 8) snapping mot footprint + hjørner
+    # 8) snapping footprint + edges
     snapped_faces: List[FaceRec] = []
     for f in faces:
         outer = list(f.poly2d.exterior.coords)[:-1]
@@ -885,12 +878,11 @@ def extract_roof_planes(
     faces = snapped_faces
     enforce_horizontal_eaves(faces, footprint)
 
-    # 8b) FJERN OVERLAPP ETTER SNAPPING
-    #    – nå jobber vi på de endelige konturene
+    # 8b) remove overlap
     faces = resolve_overlaps_by_rms(
         faces,
         P,
-        min_overlap_area=0.05,   # litt mer aggressiv
+        min_overlap_area=0.05,   
         min_pts_region=20
     )
 
