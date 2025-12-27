@@ -9,6 +9,6 @@ Requirements:
 - numpy, shapely, geopandas, open3d, fiona
 
 Run:
-python run_roof_recon.py
+python roof_recon/run_roof_reconstruction.py
 
 The program outputs LoD2 CityGML building models and optional visualizations.
